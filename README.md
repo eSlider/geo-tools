@@ -10,9 +10,9 @@ go mod download
 make
 ```
 
-## mbtiles to PBF tile extractor
+## MBTiles to PBF tile extractor
 
-Blasting fast mbtiles to PBF tile extractor written in golang.
+Blasting fast MBTiles to PBF tile extractor written in golang.
 
 It can export `pbf`, `jpeg`, `webp` or `png` files into `/z/y/x/[number].[pbf|webp|png|jpg]` file structure from an `mbtiles` map database file.
 
