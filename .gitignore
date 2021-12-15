@@ -1,0 +1,9 @@
+# IDE's
+.idea/
+mbtile-extractor.iml
+
+# mbtiles
+data/
+
+# PBF's
+tiles/
