@@ -19,7 +19,7 @@ It can export `pbf`, `jpeg`, `webp` or `png` files into `/z/y/x/[number].[pbf|we
 ### Run example
 
 ```shell
-dist/mbtiles-extractor -i data/tiles-world-vector.mbtiles
+dist/mbtiles-extractor -i data/mbtiles-world-vector.mbtiles -u http://localhost/tiles
 ```
 
 ### Configuration options
@@ -30,6 +30,6 @@ dist/mbtiles-extractor -i data/tiles-world-vector.mbtiles
 
 #### Export
 
-* `--path` or `-i`: Export path which is `tiles` by default.
-* `--decompress` or `-d`: Determinate tile compression format and export raw `PBF` tiles.
-
+* `--path`, `-i`: Export path which is `tiles` by default.
+* `--decompress`, `-d`: Determinate tile compression format and export raw `PBF` tiles.
+* `--url`, `-u`: base URL to serve tiles (default `http://localhost/tiles/`)

@@ -11,7 +11,7 @@ require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/magiconair/properties v1.8.1 // indirect
 	github.com/mattn/go-sqlite3 v1.14.9
-	github.com/mitchellh/mapstructure v1.1.2 // indirect
+	github.com/mitchellh/mapstructure v1.1.2
 	github.com/pelletier/go-toml v1.2.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
