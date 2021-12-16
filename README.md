@@ -19,7 +19,7 @@ It can export `pbf`, `jpeg`, `webp` or `png` files into `/z/y/x/[number].[pbf|we
 ### Run example
 
 ```shell
-dist/mbtiles-extractor -i data/mbtiles-world-vector.mbtiles -u http://localhost/tiles
+dist/mbtiles-extractor -i data/tiles-world-vector.mbtiles -u http://localhost/tiles
 ```
 
 ### Configuration options
