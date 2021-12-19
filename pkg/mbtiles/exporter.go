@@ -8,13 +8,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
 
-	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/mitchellh/mapstructure"
 	_ "github.com/mitchellh/mapstructure"
@@ -30,7 +28,8 @@ type ExporterSettings struct {
 
 // Exporter of mbtiles
 type Exporter struct {
-	db  *sqlx.DB
+	Manager
+
 	cfg ExporterSettings
 	wg  sync.WaitGroup
 
@@ -40,72 +39,14 @@ type Exporter struct {
 
 // NewExporter creates a new sitemap exporter.
 func NewExporter(importPath string, settings ExporterSettings) (*Exporter, error) {
-	var params = url.Values{}
-
-	// Prevents any timeouts
-	params.Add("_timeout", "0")
-
-	// If shared-cache mode is enabled and a thread establishes multiple connections to the same database,
-	// the connections share a single data and schema cache.
-	// This can significantly reduce the quantity of memory and IO required by the system.
-	params.Add("cache", "shared")
-
-	// With synchronous OFF (0), SQLite continues without syncing as soon as
-	// it has handed data off to the operating system.
-	// If the application running SQLite crashes, the data will be safe,
-	// but the database might become corrupted if the operating system crashes
-	// or the computer loses power before that data has been written to the disk surface.
-	// On the other hand, commits can be orders of magnitude faster with synchronous OFF.
-	params.Add("_sync", "OFF")
-
-	// No need to optimize database storage every time it's changes
-	params.Add("_vacuum", "0")
-	params.Add("mode", "memory")
-	params.Add("journal", "OFF")
-	params.Add("immutable", "true")
-	params.Add("_mutex", "no")
-	params.Add("_query_only", "true")
-	params.Add("_writable_schema", "false")
-	params.Add("_fk", "false")
-	params.Add("_defer_fk", "false")
-	params.Add("_ignore_check_constraints", "true")
-	dsn := importPath + "?" + params.Encode()
-	db, err := sqlx.Open("sqlite3", dsn)
-
+	manager, err := NewManager(importPath)
 	if err != nil {
 		return nil, err
 	}
-
 	return &Exporter{
-		db:  db,
-		cfg: settings,
+		Manager: *manager,
+		cfg:     settings,
 	}, nil
-}
-
-// GetTile data only a pbf image
-func (ex *Exporter) GetTile(z int64, x int64, y int64) ([]byte, error) {
-	var tileData []byte
-	rows, err := ex.db.Query(`
-      SELECT "tile_data"
-      FROM "tiles"
-      WHERE "zoom_level"=?
-        AND "tile_column"=?
-        AND "tile_row"=?`, z, x, y)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	// Scan all result and append it
-	for rows.Next() {
-		var tmpTileData []byte
-		if err := rows.Scan(&tmpTileData); err != nil {
-			return nil, err
-		}
-		tileData = append(tileData, tmpTileData...)
-	}
-
-	return tileData, nil
 }
 
 // Export tiles
@@ -150,39 +91,6 @@ func (ex *Exporter) Export() error {
 		Info("Write index file")
 
 	return nil
-}
-
-// GetTiles list
-func (ex *Exporter) GetTiles() ([]*Tile, error) {
-	// Fetch tiles
-	rows, err := ex.db.Queryx("SELECT zoom_level, tile_column, tile_row FROM tiles")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	// sqlx.Next and sqlx.StructScan are not safe for concurrent use.
-	// If you throw together a simple unit test for your code and run it
-	// with the race detector go test -race, it will report a race condition
-	// on an unexported field of the "database/sql".Rows struct:
-	var tiles []*Tile
-	for rows.Next() {
-		var t Tile
-		if err := rows.StructScan(&t); err != nil {
-			logrus.
-				WithError(err).
-				Error("Fetch tile from db")
-		}
-		t.Data, err = ex.GetTile(t.ZoomLevel, t.Column, t.Row)
-		tiles = append(tiles, &t)
-		if err != nil {
-			logrus.
-				WithField("tile", t).
-				Warn("Get tile data")
-		}
-	}
-
-	return tiles, nil
 }
 
 // exportTile
