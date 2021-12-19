@@ -1,8 +1,13 @@
 package mbtiles
 
 import (
+	"bytes"
+	"compress/gzip"
+	"compress/zlib"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"math"
 )
 
@@ -47,4 +52,22 @@ func (t *Tile) GetFormat() (TileFormat, error) {
 // DetectTileFormat by data prefix
 func (t *Tile) DetectTileFormat() (TileFormat, error) {
 	return DetectTileFormat(t.Data)
+}
+
+func (t *Tile) GetProtobuf() ([]byte, error) {
+	var tileDataReader io.Reader
+	tileDataReader = bytes.NewReader(t.Data)
+	format, err := t.DetectTileFormat()
+	if err != nil {
+		return nil, err
+	}
+	// Read tile da
+	// Decompress depending on the format
+	switch format {
+	case GZIP:
+		tileDataReader, _ = gzip.NewReader(tileDataReader)
+	case ZLIB:
+		tileDataReader, _ = zlib.NewReader(tileDataReader)
+	}
+	return ioutil.ReadAll(tileDataReader)
 }

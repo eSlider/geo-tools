@@ -1,10 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 
+	"github.com/paulmach/orb/geojson"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -12,10 +15,9 @@ import (
 	"github.com/eslider/geo-tools/pkg/mbtiles"
 )
 
-// Extract tile command
 var command = &cobra.Command{
-	Use:     "mbtiles-extractor",
-	Long:    "Extracts tiles from `mbtiles` file",
+	Use:     "mbtiles-geocoder",
+	Long:    "Geocode by using mbtiles file",
 	Args:    cobra.NoArgs,
 	Version: "0.0.1",
 	Run: func(cmd *cobra.Command, args []string) {
@@ -24,35 +26,34 @@ var command = &cobra.Command{
 		if !viper.GetBool("verbose") {
 			logrus.SetLevel(logrus.WarnLevel | logrus.ErrorLevel | logrus.DebugLevel | logrus.FatalLevel | logrus.PanicLevel)
 		}
-
-		// Create exporter
-		settings := mbtiles.ExporterSettings{
-			Path:       viper.GetString("export"),
-			Decompress: viper.GetBool("decompress"),
-			BaseUrl:    viper.GetString("url"),
-		}
-
-		mbtilesPath := viper.GetString("import")
-		exporter, err := mbtiles.NewExporter(mbtilesPath, settings)
+		manager, err := mbtiles.NewManager(viper.GetString("mbtiles"))
 		if err != nil {
-			logrus.WithError(err).Error("Export tiles")
+			logrus.WithError(err).Fatal("Unable to open mbtiles database")
 		}
 
-		logrus.WithField("import", mbtilesPath).Infof("Start export")
-		if err = exporter.Export(); err != nil {
-			logrus.WithError(exporter.Export()).Error("Export tiles")
+		features, err := manager.Search(viper.GetString("search"), viper.GetInt("max"))
+		if err != nil {
+			logrus.WithError(err).Fatal("Unable to search database")
 		}
-		logrus.WithField("import", mbtilesPath).Infof("End export")
+
+		fc := &geojson.FeatureCollection{
+			Type:     "FeatureCollection",
+			Features: features,
+		}
+		geoJSON, err := json.Marshal(fc)
+		if err != nil {
+			logrus.WithError(err).Fatal("Unable to generate GeoJSON")
+		}
+		fmt.Print(string(geoJSON))
 	},
 }
 
 // Initializing options
 func init() {
-	command.Flags().StringP("import", "i", "data/tiles-world-vector.mbtiles", "Import data path")
-	command.Flags().StringP("export", "o", "tiles", "Export data path")
-	command.Flags().StringP("url", "u", "http://localhost/tiles/", "base URL to serve tiles")
-	command.Flags().BoolP("decompress", "d", true, "Decompress PBF files")
-	command.Flags().BoolP("verbose", "v", false, "Output details")
+	command.Flags().BoolP("verbose", "v", false, "output details")
+	command.Flags().StringP("mbtiles", "d", "data/canary-islands-latest.mbtiles", "MBtiles data path")
+	command.Flags().StringP("search", "s", "", "search query")
+	command.Flags().Int("max", 5, "maximal results number")
 }
 
 // main command
