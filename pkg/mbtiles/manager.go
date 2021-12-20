@@ -1,16 +1,18 @@
 package mbtiles
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/url"
-	"strings"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/paulmach/orb/encoding/mvt"
 	"github.com/paulmach/orb/geojson"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/text/language"
+	"golang.org/x/text/search"
 )
 
 type Manager struct {
@@ -73,7 +75,9 @@ func (m *Manager) GetTile(z int64, x int64, y int64) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		_ = rows.Close()
+	}(rows)
 
 	// Scan all result and append it
 	for rows.Next() {
@@ -203,16 +207,26 @@ func (m *Manager) WalkThroughPlaces(callback func(subj string, cls string, featu
 // Search features where subject has a query
 func (m *Manager) Search(query string, maxResults int) ([]*geojson.Feature, error) {
 	var features []*geojson.Feature
+	options := []search.Option{
+		// Loose causes case, diacritics and width to be ignored.
+		search.Loose,
+		// IgnoreDiacritics causes diacritics to be ignored ("ö" == "o").
+		search.IgnoreDiacritics,
+		// IgnoreWidth equates narrow with wide variants.
+		search.IgnoreWidth,
+	}
+	sp := search.New(language.Und, options...).CompileString(query)
 	return features, m.WalkThroughPlaces(func(subj string, cls string, feature *geojson.Feature) bool {
-		if strings.Contains(strings.ToLower(subj), query) {
+		start, end := sp.IndexString(subj)
+		if start > -1 && end > 0 {
 			features = append(features, feature)
 		}
 		return len(features) < maxResults
 	})
 }
 
-// ExportGeoJson layer
-func ExportGeoJson(layer *mvt.Layer) error {
+// ExportGeoJSON layer
+func ExportGeoJSON(layer *mvt.Layer) error {
 	fc := ConvertMVTLayerToFeatureCollection(layer)
 	gjData, err := json.Marshal(fc)
 	if err != nil {
