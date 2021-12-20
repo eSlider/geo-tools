@@ -10,7 +10,7 @@ func TestSearchingByWord(t *testing.T) {
 		t.Error(err)
 	}
 
-	searchQuery := "na"
+	searchQuery := "santa"
 	features, err := manager.Search(searchQuery, 5)
 	if err != nil {
 		t.Error(err)
